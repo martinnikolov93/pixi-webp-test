@@ -1,7 +1,6 @@
-const app = new PIXI.Application({ transparent: true, width: 900, height: 800 });
-document.body.appendChild(app.view);
+const app = new PIXI.Application({ transparent: true, width: 900, height: 800, view: document.getElementById("pixi-app") });
+// document.body.appendChild(app.view);
 
-// load spine data
 app.loader
     .add('main-scene', 'assets/main-scene.json')
     .load(onAssetsLoaded);

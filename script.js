@@ -1,66 +1,50 @@
-const app = new PIXI.Application({ transparent: true, width: 900, height: 800, view: document.getElementById("pixi-app") });
-// document.body.appendChild(app.view);
+let featureCount = 0;
 
-app.loader
-    .add('main-scene', 'assets/main-scene.json')
-    .load(onAssetsLoaded);
+let lossyIsSupported = null;
 
-app.stage.interactive = true;
+check_webp_feature('lossy', function (feature, isSupported) {
+    if (isSupported) {
+        lossyIsSupported = true
+    } else {
+        lossyIsSupported = false
+    }
 
-function onAssetsLoaded(loader, res) {
-    console.log("pixi works");
-    console.log(PIXI.utils.TextureCache);
+    next();
+});
 
-    let panda = new PIXI.Sprite(PIXI.utils.TextureCache["panda"])
-    app.stage.addChild(panda)
+let losslessIsSupported = null;
 
-    let lossy = new PIXI.Text()
-    app.stage.addChild(lossy)
+check_webp_feature('lossless', function (feature, isSupported) {
+    if (isSupported) {
+        losslessIsSupported = true;
+    } else {
+        losslessIsSupported = false;
+    }
 
-    check_webp_feature('lossy', function (feature, isSupported) {
-        if (isSupported) {
-            lossy.text = "WebP lossy is supported"
-        } else {
-            lossy.text = "WebP lossy NOT supported"
-        }
-    });
+    next();
+});
 
-    let lossless = new PIXI.Text()
-    lossless.y = 30
-    app.stage.addChild(lossless)
+let alphaIsSupported = null;
 
-    check_webp_feature('lossless', function (feature, isSupported) {
-        if (isSupported) {
-            lossless.text = "WebP lossless is supported"
-        } else {
-            lossless.text = "WebP lossless NOT supported"
-        }
-    });
+check_webp_feature('alpha', function (feature, isSupported) {
+    if (isSupported) {
+        alphaIsSupported = true;
+    } else {
+        alphaIsSupported = false;
+    }
 
-    let alpha = new PIXI.Text()
-    alpha.y = 60
-    app.stage.addChild(alpha)
+    next();
+});
 
-    check_webp_feature('alpha', function (feature, isSupported) {
-        if (isSupported) {
-            alpha.text = "WebP alpha is supported"
-        } else {
-            alpha.text = "WebP alpha NOT supported"
-        }
-    });
+let animationIsSupported = null;
 
-    let animation = new PIXI.Text()
-    animation.y = 90
-    app.stage.addChild(animation)
-
-    check_webp_feature('animation', function (feature, isSupported) {
-        if (isSupported) {
-            animation.text = "WebP animation is supported"
-        } else {
-            animation.text = "WebP animation NOT supported"
-        }
-    });
-}
+check_webp_feature('animation', function (feature, isSupported) {
+    if (isSupported) {
+        animationIsSupported = true;
+    } else {
+        animationIsSupported = false;
+    }
+});
 
 // check_webp_feature:
 //   'feature' can be one of 'lossy', 'lossless', 'alpha' or 'animation'.
@@ -82,3 +66,94 @@ function check_webp_feature(feature, callback) {
     };
     img.src = "data:image/webp;base64," + kTestImages[feature];
 }
+
+function next() {
+    featureCount++;
+
+    if (featureCount === 3) {
+        window.webPIsSupported = lossyIsSupported && losslessIsSupported && alphaIsSupported;
+
+        initPixiApp();
+    }
+}
+
+function initPixiApp() {
+    const app = new PIXI.Application({ transparent: true, width: 900, height: 800, view: document.getElementById("pixi-app") });
+
+    app.loader.onStart.add(() => { console.log("onStart") });
+    app.loader.onProgress.add((l, r) => { console.log("onProgress", r.url) });
+    app.loader.onError.add((e, l, r) => { console.log("onError") });
+    app.loader.onLoad.add((l, r) => { console.log("onLoad", r.url) });
+    app.loader.onComplete.add((l, r) => { console.log("onComplete") });
+
+    function middleWare(resource, next) {
+        console.log("middleWare", resource)
+        console.log(resource)
+
+        if (resource.extension === "webp" && !window.webPIsSupported) {
+            console.log("webPIsSupported", window.webPIsSupported);
+            resource.url = resource.url.replace("webp", "png")
+            resource.extension = "png"
+        }
+
+        next()
+    }
+
+
+    PIXI.loaders.Loader.addPixiMiddleware(middleWare)
+
+    app.loader
+        .pre(middleWare)
+        .add('main-scene', 'assets/main-scene.json')
+        .load(onAssetsLoaded);
+
+    app.stage.interactive = true;
+
+    function onAssetsLoaded(loader, res) {
+        console.log("pixi start");
+        console.log(PIXI.utils.TextureCache);
+
+        let panda = new PIXI.Sprite(PIXI.utils.TextureCache["panda"])
+        app.stage.addChild(panda)
+
+        let lossy = new PIXI.Text()
+        app.stage.addChild(lossy)
+
+        if (lossyIsSupported) {
+            lossy.text = "WebP lossy is supported"
+        } else {
+            lossy.text = "WebP lossy NOT supported"
+        }
+
+        let lossless = new PIXI.Text()
+        lossless.y = 30
+        app.stage.addChild(lossless)
+
+        if (losslessIsSupported) {
+            lossless.text = "WebP lossless is supported"
+        } else {
+            lossless.text = "WebP lossless NOT supported"
+        }
+
+        let alpha = new PIXI.Text()
+        alpha.y = 60
+        app.stage.addChild(alpha)
+
+        if (alphaIsSupported) {
+            alpha.text = "WebP alpha is supported"
+        } else {
+            alpha.text = "WebP alpha NOT supported"
+        }
+
+        let animation = new PIXI.Text()
+        animation.y = 90
+        app.stage.addChild(animation)
+
+        if (animationIsSupported) {
+            animation.text = "WebP animation is supported"
+        } else {
+            animation.text = "WebP animation NOT supported"
+        }
+    }
+}
+

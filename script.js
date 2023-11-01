@@ -1,55 +1,7 @@
-let featureCount = 0;
-
-let lossyIsSupported = null;
-
-check_webp_feature('lossy', function (feature, isSupported) {
-    if (isSupported) {
-        lossyIsSupported = true
-    } else {
-        lossyIsSupported = false
-    }
-
-    next();
-});
-
-let losslessIsSupported = null;
-
-check_webp_feature('lossless', function (feature, isSupported) {
-    if (isSupported) {
-        losslessIsSupported = true;
-    } else {
-        losslessIsSupported = false;
-    }
-
-    next();
-});
-
-let alphaIsSupported = null;
-
-check_webp_feature('alpha', function (feature, isSupported) {
-    if (isSupported) {
-        alphaIsSupported = true;
-    } else {
-        alphaIsSupported = false;
-    }
-
-    next();
-});
-
-let animationIsSupported = null;
-
-check_webp_feature('animation', function (feature, isSupported) {
-    if (isSupported) {
-        animationIsSupported = true;
-    } else {
-        animationIsSupported = false;
-    }
-});
-
-// check_webp_feature:
-//   'feature' can be one of 'lossy', 'lossless', 'alpha' or 'animation'.
-//   'callback(feature, isSupported)' will be passed back the detection result (in an asynchronous way!)
-function check_webp_feature(feature, callback) {
+window.webp = {}
+window.webp.isSupported = null;
+window.webp.features = { lossy: null, lossless: null, alpha: null };
+window.webp.checkWebpFeature = (feature, callback) => {
     var kTestImages = {
         lossy: "UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA",
         lossless: "UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==",
@@ -65,16 +17,44 @@ function check_webp_feature(feature, callback) {
         callback(feature, false);
     };
     img.src = "data:image/webp;base64," + kTestImages[feature];
-}
+};
+window.webp.onFeatureCheck = (callback) => {
+    if (window.webp.features.lossy !== null && window.webp.features.lossless !== null && window.webp.features.alpha !== null) {
+        window.webp.isSupported = window.webp.features.lossy && window.webp.features.lossless && window.webp.features.alpha;
 
-function next() {
-    featureCount++;
-
-    if (featureCount === 3) {
-        window.webPIsSupported = lossyIsSupported && losslessIsSupported && alphaIsSupported;
-
-        initPixiApp();
+        callback();
     }
+}
+window.webp.checkSupport = (onComplete) => {
+    window.webp.checkWebpFeature('lossy', function (feature, isSupported) {
+        if (isSupported) {
+            window.webp.features.lossy = true
+        } else {
+            window.webp.features.lossy = false
+        }
+
+        window.webp.onFeatureCheck(onComplete);
+    });
+
+    window.webp.checkWebpFeature('lossless', function (feature, isSupported) {
+        if (isSupported) {
+            window.webp.features.lossless = true;
+        } else {
+            window.webp.features.lossless = false;
+        }
+
+        window.webp.onFeatureCheck(onComplete);
+    });
+
+    window.webp.checkWebpFeature('alpha', function (feature, isSupported) {
+        if (isSupported) {
+            window.webp.features.alpha = true;
+        } else {
+            window.webp.features.alpha = false;
+        }
+
+        window.webp.onFeatureCheck(onComplete);
+    });
 }
 
 function initPixiApp() {
@@ -90,8 +70,20 @@ function initPixiApp() {
         console.log("middleWare", resource)
         console.log(resource)
 
-        if (resource.extension === "webp" && !window.webPIsSupported) {
-            console.log("webPIsSupported", window.webPIsSupported);
+        if (resource.extension === "webp" && !window.webp.isSupported) {
+            if (window.webp.isSupported === null) {
+                window.webp.checkSupport(() => {
+                    if (window.webp.isSupported === false) {
+                        resource.url = resource.url.replace("webp", "png")
+                        resource.extension = "png";
+                    }
+
+                    next();
+                })
+
+                return
+            }
+            console.log("webPIsSupported", window.webp.isSupported);
             resource.url = resource.url.replace("webp", "png")
             resource.extension = "png"
         }
@@ -119,7 +111,7 @@ function initPixiApp() {
         let lossy = new PIXI.Text()
         app.stage.addChild(lossy)
 
-        if (lossyIsSupported) {
+        if (window.webp.features.lossy) {
             lossy.text = "WebP lossy is supported"
         } else {
             lossy.text = "WebP lossy NOT supported"
@@ -129,7 +121,7 @@ function initPixiApp() {
         lossless.y = 30
         app.stage.addChild(lossless)
 
-        if (losslessIsSupported) {
+        if (window.webp.features.lossless) {
             lossless.text = "WebP lossless is supported"
         } else {
             lossless.text = "WebP lossless NOT supported"
@@ -139,21 +131,22 @@ function initPixiApp() {
         alpha.y = 60
         app.stage.addChild(alpha)
 
-        if (alphaIsSupported) {
+        if (window.webp.features.alpha) {
             alpha.text = "WebP alpha is supported"
         } else {
             alpha.text = "WebP alpha NOT supported"
         }
 
-        let animation = new PIXI.Text()
-        animation.y = 90
-        app.stage.addChild(animation)
+        // let animation = new PIXI.Text()
+        // animation.y = 90
+        // app.stage.addChild(animation)
 
-        if (animationIsSupported) {
-            animation.text = "WebP animation is supported"
-        } else {
-            animation.text = "WebP animation NOT supported"
-        }
+        // if (animationIsSupported) {
+        //     animation.text = "WebP animation is supported"
+        // } else {
+        //     animation.text = "WebP animation NOT supported"
+        // }
     }
 }
 
+initPixiApp();
